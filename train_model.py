@@ -1,17 +1,20 @@
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-  
+import streamlit as st
+import sklearn
+import pickle
+import string
+import re
 import nltk
-from nltk import word_tokenize
-import string, re
 from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize, sent_tokenize
 nltk.download('stopwords')
 nltk.download('punkt')
-from nltk.stem import LancasterStemmer
-from nltk.stem import WordNetLemmatizer
+nltk.download('punkt_tab')
 from nltk.stem import PorterStemmer
-nltk.download('wordnet')
+
+port_stemmer = PorterStemmer()
+
+tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
+model = pickle.load(open('model.pkl', 'rb'))
 
 # Завантаження
 df = pd.read_csv("ukr_sms_spam.csv")
