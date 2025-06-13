@@ -1,9 +1,19 @@
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.pipeline import make_pipeline
-from sklearn.metrics import classification_report
-import joblib
+import seaborn as sns
+import matplotlib.pyplot as plt
+%matplotlib inline
+     
+
+import nltk
+from nltk import word_tokenize
+import string, re
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+nltk.download('punkt')
+from nltk.stem import LancasterStemmer
+from nltk.stem import WordNetLemmatizer
+from nltk.stem import PorterStemmer
+nltk.download('wordnet')
 
 # Завантаження
 df = pd.read_csv("ukr_sms_spam.csv")
