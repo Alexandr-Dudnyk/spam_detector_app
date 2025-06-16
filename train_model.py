@@ -1,34 +1,27 @@
-import streamlit as st
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import classification_report
 import joblib
 
-# Завантаження моделі
-@st.cache_resource
-def load_model():
-    return joblib.load("spam_detector_ukr.pkl")
+# Завантаження
+df = pd.read_csv("ukr_sms_spam.csv")
+X = df["text"]
+y = df["label"]
 
-model = load_model()
+# Train/test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Інтерфейс
-st.set_page_config(page_title="UkrSpamDetector", page_icon="📩")
-st.title("📩 Виявлення СПАМу (українська мова)")
-st.markdown("Введіть текст повідомлення, щоб перевірити, чи є воно спамом.")
+# Модель
+model = make_pipeline(TfidfVectorizer(), MultinomialNB())
+model.fit(X_train, y_train)
 
-# Ввід користувача
-user_input = st.text_area("✍️ Введіть повідомлення:", height=150)
+# Оцінка
+y_pred = model.predict(X_test)
+print(classification_report(y_test, y_pred))
 
-if user_input:
-    prediction = model.predict([user_input])[0]
-    probas = model.predict_proba([user_input])[0]
-    spam_prob = round(probas[model.classes_.tolist().index("spam")], 2)
-
-    st.subheader("🔍 Результат:")
-    if prediction == "spam":
-        st.error(f"❌ Це СПАМ (ймовірність: {spam_prob})")
-    else:
-        st.success(f"✅ Це не спам (ймовірність спаму: {spam_prob})")
-
-    with st.expander("📊 Деталі"):
-        st.json({
-            "Класи": list(model.classes_),
-            "Ймовірності": {cls: round(prob, 3) for cls, prob in zip(model.classes_, probas)}
-        })
+# Збереження
+joblib.dump(model, "spam_detector_ukr.pkl")
+print("Модель збережено у spam_detector_ukr.pkl")
