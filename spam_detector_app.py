@@ -1,34 +1,40 @@
 import streamlit as st
-import joblib
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
 
-# Завантаження моделі
+# Завантаження моделі BERT (багатомовна, підтримує українську)
 @st.cache_resource
 def load_model():
-    return joblib.load("spam_detector_ukr.pkl")
+    model_name = "cointegrated/rubert-tiny-toxicity"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    return tokenizer, model
 
-model = load_model()
+tokenizer, model = load_model()
 
 # Інтерфейс
-st.set_page_config(page_title="UkrSpamDetector", page_icon="📩")
-st.title("📩 Виявлення СПАМу (українська мова)")
-st.markdown("Введіть текст повідомлення, щоб перевірити, чи є воно спамом.")
+st.set_page_config(page_title="BERT Spam/Toxic Detector", page_icon="🤖")
+st.title("🤖 Виявлення спаму/токсичності (BERT, українська мова)")
+st.markdown("Введіть повідомлення українською для класифікації за допомогою BERT-моделі.")
 
-# Ввід користувача
 user_input = st.text_area("✍️ Введіть повідомлення:", height=150)
 
+def classify(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    scores = torch.sigmoid(outputs.logits).squeeze().numpy()
+    labels = model.config.id2label
+    return {labels[i]: float(scores[i]) for i in range(len(scores))}
+
 if user_input:
-    prediction = model.predict([user_input])[0]
-    probas = model.predict_proba([user_input])[0]
-    spam_prob = round(probas[model.classes_.tolist().index("spam")], 2)
+    results = classify(user_input)
+    st.subheader("🔍 Результати класифікації:")
+    for label, score in results.items():
+        st.write(f"**{label}**: {score:.2f}")
+        st.progress(score)
 
-    st.subheader("🔍 Результат:")
-    if prediction == "spam":
-        st.error(f"❌ Це СПАМ (ймовірність: {spam_prob})")
+    if results.get("spam", 0) > 0.5 or results.get("toxic", 0) > 0.5 or results.get("obscene", 0) > 0.5:
+        st.error("⚠️ Повідомлення може бути спамом або токсичним.")
     else:
-        st.success(f"✅ Це не спам (ймовірність спаму: {spam_prob})")
-
-    with st.expander("📊 Деталі"):
-        st.json({
-            "Класи": list(model.classes_),
-            "Ймовірності": {cls: round(prob, 3) for cls, prob in zip(model.classes_, probas)}
-        })
+        st.success("✅ Повідомлення виглядає безпечним.")
