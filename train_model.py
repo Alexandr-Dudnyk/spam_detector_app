@@ -1,37 +1,34 @@
 import streamlit as st
-import sklearn
-import pickle
-import string
-import re
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize, sent_tokenize
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('punkt_tab')
-from nltk.stem import PorterStemmer
+import joblib
 
-port_stemmer = PorterStemmer()
+# Завантаження моделі
+@st.cache_resource
+def load_model():
+    return joblib.load("spam_detector_ukr.pkl")
 
-tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
-model = pickle.load(open('model.pkl', 'rb'))
+model = load_model()
 
-# Завантаження
-df = pd.read_csv("ukr_sms_spam.csv")
-X = df["text"]
-y = df["label"]
+# Інтерфейс
+st.set_page_config(page_title="UkrSpamDetector", page_icon="📩")
+st.title("📩 Виявлення СПАМу (українська мова)")
+st.markdown("Введіть текст повідомлення, щоб перевірити, чи є воно спамом.")
 
-# Train/test
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Ввід користувача
+user_input = st.text_area("✍️ Введіть повідомлення:", height=150)
 
-# Модель
-model = make_pipeline(TfidfVectorizer(), MultinomialNB())
-model.fit(X_train, y_train)
+if user_input:
+    prediction = model.predict([user_input])[0]
+    probas = model.predict_proba([user_input])[0]
+    spam_prob = round(probas[model.classes_.tolist().index("spam")], 2)
 
-# Оцінка
-y_pred = model.predict(X_test)
-print(classification_report(y_test, y_pred))
+    st.subheader("🔍 Результат:")
+    if prediction == "spam":
+        st.error(f"❌ Це СПАМ (ймовірність: {spam_prob})")
+    else:
+        st.success(f"✅ Це не спам (ймовірність спаму: {spam_prob})")
 
-# Збереження
-joblib.dump(model, "spam_detector_ukr.pkl")
-print("Модель збережено у spam_detector_ukr.pkl")
+    with st.expander("📊 Деталі"):
+        st.json({
+            "Класи": list(model.classes_),
+            "Ймовірності": {cls: round(prob, 3) for cls, prob in zip(model.classes_, probas)}
+        })
